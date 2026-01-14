@@ -9,11 +9,11 @@
 
 %% ========================================================================
 %  (WIDE) — average last 600 iterations (ND_4401..ND_5000)
-%  Modify your pipeline to work with: case_a_final_WIDE_data_format.csv
+%  Modify pipeline to work with: case_a_final_WIDE_data_format.csv
 %
 %  Assumptions:
 %   - CSV has columns: subj_id, GABA_level, Dvis_value, ND_2000 ... ND_5000
-%   - You want Com_ND = mean of the last 600 iterations (4401–5000 inclusive)
+%   - Com_ND = mean of the last 600 iterations (4401–5000 inclusive)
 %   - Then run the same regressions + optional bootstrap mediation
 %   - Keep your outlier filtering logic (3-SD) but updated column names
 % ========================================================================
@@ -156,3 +156,4 @@ end
 % out_csv = fullfile(out_dir, 'case_a_cleaned_with_ComND_last600.csv');
 % writetable(T, out_csv);
 % fprintf('\nCleaned table written to:\n%s\n', out_csv);
+
