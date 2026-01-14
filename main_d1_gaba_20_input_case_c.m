@@ -21,20 +21,27 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-clear all;
-close all;
-clc;
+% clear all;
+% close all;
+% clc;
+iter       = 5000;
 pause(0.1);
 
-% Load input stimuli
-[P,col,lin]=inputnumbers;
+% [P,col,lin]=inputnumbers_old;
+% [P,col,lin]=inputnumbers_positive;
+[P,col,lin]=inputnumbers_noise_20(0.1);
+% Using the permutation input within-category for each model_id
+% [P, col, lin] = inputnumbers_balanced;
+% [P, col, lin] = inputnumbers_clean_cat(0.2);
 [n_entradas, padroes] = size(P);
 
 % Define the network structure
 sensory=n_entradas;
 tc=n_entradas;
-spiny=padroes;
-inhibit=padroes;
+% spiny=padroes;
+spiny =20;
+% inhibit=padroes;
+inhibit = spiny;
 numero_total_de_neuronas=sensory+tc+spiny+inhibit;
 
 % initialize network properties
@@ -43,6 +50,7 @@ steepness(sensory+1:sensory+tc) = 40;
 
 % generate the connections
 camadas = 4;
+% We add the random seed to ensure the reproducibility
 [w, mascara] = gennet_con_4_capas(sensory,tc,spiny,inhibit);
 n_neuronios = size(w, 1);
 
@@ -54,12 +62,14 @@ output = zeros(n_neuronios, 1);
 output_antes = output;
 
 % define learning rules
-fator_aprendiz = 0.0019; % learning rate for weights
+% fator_aprendiz = 0.0019; % original learning rate for weights
+fator_aprendiz = 0.0015;
+% fator_aprendiz = 0.0038;
 velocidade_deslocamento = 0.0199.*(ones(size(shift))); % how fast neurons shift their activation thresh
 velocidade_deslocamento(sensory+1:sensory+tc) = 0.0199; % fixed thresh shift speed for tc
 
 % set iterations and graphing parameters
-iter = 2000;
+% iter = 2000;
 iter_graph = 1;
 inter_totais = 1;
 graf_shift = zeros(1,iter);
@@ -94,37 +104,16 @@ disp('Processing Koniocortex .....')
 ss_activity_per_number = zeros(spiny, padroes, iter);
 graf_incw = zeros(1, iter);
 
-
 for i = 1:iter
-
-    % Determine if we are at a visualization checkpoint
-    if ismember(i, ceil([10 50 100] * iter / 100))
-
+% 
+%     Determine if we are at a visualization checkpoint
+    % if ismember(i, ceil([5 10 15 20 25 30 35 40 45 50 55 60 65 70 75 80 85 90] * iter / 100))
+    if ismember(i, ceil([5 50 100] * iter / 100))
         % Display network memory visualization
-        % hfig1 = figure('Menubar','none','Toolbar','none','NumberTitle','off',...
-        %     'Name',['Training at ', num2str((i/iter)*100), '%' 'Position', [100 100 2400 600]]);
-        % % write weight matrix into csv 
-        % pct = (i/iter)*100;
-        % pct_str = sprintf('%03d', round(pct));
-        % out_root = 'C:\Users\violetz\Documents\UM\Projects\AD_Model\Paper_materials\Neubiol.Aging_submit\Revision\Figures\Simulation_results\Simulation_plot\Typical_training';
-        % 
-        % snap_dir = fullfile(out_root, ['pct_' pct_str '_iter_' num2str(i)]);
-        % if ~exist(snap_dir, 'dir'); mkdir(snap_dir); 
-        % end
-        % 
-        % out_root = 'C:\Users\violetz\Documents\UM\Projects\AD_Model\Paper_materials\Neubiol.Aging_submit\Revision\Figures\Simulation_results\Simulation_plot\Typical_training';
-        % snap_dir = fullfile(out_root, ['pct_' pct_str '_iter_' num2str(i)]);
-        % writematrix(w, fullfile(snap_dir, ['w_full_pct_' pct_str '.csv']));
-
-        hfig1 = figure( ...
-        'Menubar','none', ...
-        'Toolbar','none', ...
-        'NumberTitle','off', ...
-        'Name', ['Training at ' num2str((i/iter)*100) '%'], ...
-        'Units','pixels', ...
-        'Position',[100 100 1200 300]);
-
-        memories1(w, sensory, tc, spiny, col, lin); % Visualize the memories
+        hfig1 = figure('Menubar','none','Toolbar','none','NumberTitle','off', ...
+        'Name',['Training at ', num2str((i/iter)*100), '%'], ...
+        'Position',[100 100 800 400]);
+        memories1_thresh(w, sensory, tc, spiny, col, lin); % Visualize the memories
         set(hfig1, 'Color', 'w');
         disp(['Wait - Processing at ', num2str((i/iter)*100), '% .']);
 
@@ -138,7 +127,9 @@ for i = 1:iter
         ylabel('Features');
         title(['Input Matrix P at ', num2str((i/iter)*100), '% Training']);
         set(hfig2, 'Color', 'w');
+
     end
+
 
    P_temp = P;
 
@@ -166,7 +157,7 @@ for i = 1:iter
    %  end
     
     % P_temp = P;  % Normal input before 60%
-    % 
+
     % if i == ceil(60 * iter / 100) || i == ceil(70 * iter / 100)
     % disp(['Iteration ' num2str(i) ': Checking P_temp'])
     % disp(P_temp(1:5, 1:5))
@@ -201,25 +192,28 @@ for i = 1:iter
             %     w = w.* mask_pruning;
             % end
             
+            % Starting of the Divisive Normalization manipulation
+            % Normal DN function: 
             norm_1=output(sensory+1:sensory+tc)'*ones(size(output(sensory+1:sensory+tc)));
             if  norm_1==0
                 norm_1=1;        
             end
-            % fprintf('Computed norm_1 for Subject %d: %.6f\n', subj, norm_1);
-
-            % %% GABA-A -------------
-            % no GABA impairment:(update tc activation using the
-            % norm-division method:
+            % % fprintf('Computed norm_1 for Subject %d: %.6f\n', subj, norm_1);
+            % 
+            % % %% GABA-A -------------
+            % % no GABA impairment:(update tc activation using the
+            % % norm-division method:
             output(sensory+1:sensory+tc)=output(sensory+1:sensory+tc)./norm_1;
-            
-            % GABA reduced at 50% 
+            % 
+            % % % % GABA reduced at 50% 
             % if (i<ceil(50*iter/100))
             %    output(sensory+1:sensory+tc)=output(sensory+1:sensory+tc)./norm_1;
             % else       
 
-            % inhibtion factor using linear function:        
+            % GABA_scaled = 0.45; 
+            % inhibtion factor using linear function:      
             % inhibition_factor = GABA_scaled * norm_1 + (1 - GABA_scaled) * 1;
-
+            % 
             % % Apply updated inhibition factor
             % output(sensory+1:sensory+tc) = output(sensory+1:sensory+tc) ./ inhibition_factor;
             % end
@@ -247,8 +241,25 @@ for i = 1:iter
             
             % last layer inhibition neurons update using the linear
             % function
-            output((n_neuronios-inhibit+1:n_neuronios),1) = 1.3.*a((n_neuronios-inhibit+1:n_neuronios),1);
+
+            %% Manipulting the lateral inhibiton starts here:
+            % Normal lateral inhibtion w/o manipulation:
+
+            % output((n_neuronios-inhibit+1:n_neuronios),1) = 1.3.*a((n_neuronios-inhibit+1:n_neuronios),1);
             
+            
+            % output((n_neuronios-inhibit+1:n_neuronios),1) = 1.4.*a((n_neuronios-inhibit+1:n_neuronios),1);
+
+            % Maniputation of the lateral inhibiton starting from 50% 
+            if (i<ceil(50*iter/100))
+               output((n_neuronios-inhibit+1:n_neuronios),1) = 1.3.*a((n_neuronios-inhibit+1:n_neuronios),1);
+            else  
+            
+            GABA_scaled = 0.5;
+            lateral_inhib_gain  = 1.3 * GABA_scaled;
+            output((n_neuronios-inhibit+1:n_neuronios),1) = lateral_inhib_gain.*a((n_neuronios-inhibit+1:n_neuronios),1);
+            end
+
             % incw: update the weights = Hebbian learning term - small
             % decay factor
             % Hebbian lerning term: delta W = Output(t) x output(t-1)
@@ -277,13 +288,20 @@ for i = 1:iter
             %% END ACh ----------
             ss_activity_per_number(:, j, i) = output(sensory+ tc +1:sensory+tc+spiny);
             output_antes = output;
-            %% make a record of spiny neurons
-            
+            % %% make a record of spiny neurons
+            % 
             if i == ceil(50 * iter / 100) || i == ceil(60 * iter / 100) || ...
             i == ceil(70 * iter / 100) || i == ceil(80 * iter / 100)
             spiny_output = output(sensory + tc + 1:sensory + tc + spiny);
             save(['spiny_output_number_' num2str(j-1) '_epoch_' num2str((i/iter)*100) 'percent.mat'], 'spiny_output');
             end
+
+            %% Record the 
+            % if i == iter
+            % % Each column j = population response (all spiny neurons) for pattern j
+            % ss_population(:, j) = output(sensory + tc + 1 : sensory + tc + spiny);
+            % end
+
         end
     end
 
@@ -293,12 +311,12 @@ for i = 1:iter
 end
 
 
-hfig = figure('Menubar','none','Toolbar','none','NumberTitle','off','Name','100%');
-memories1(w,sensory,tc,spiny,col,lin);
+hfig = figure('Menubar','none','Toolbar','none','NumberTitle','off','Name','100%','Position',[100 100 800 400]);
+memories1_thresh(w,sensory,tc,spiny,col,lin);
 set(hfig,'Color','w');
 
 x_graf = linspace(1,100,iter);
-hfig = figure('Color','w','Menubar','none','Toolbar','none','NumberTitle','off','Name','100%');
+hfig = figure('Color','w','Menubar','none','Toolbar','none','NumberTitle','off','Name','100%','Position',[100 100 800 400]);
 plot(x_graf,graf_output,'r');
 hold on;
 plot(x_graf,graf_shift,'b');
@@ -315,3 +333,6 @@ plot(1:iter, graf_incw);
 xlabel('Iteration');
 ylabel('Total Absolute Weight Change');
 title('Evolution of Weight Updates Over Training');
+
+% drawnow;                            % let MATLAB finish layout
+% set(hfig3, 'Position', [100 1000 800 400]);   % force 2:1 at the end
